@@ -1,5 +1,5 @@
 # 🌐 StegaVault Web App (PWA)
-> **Portal Web Empresarial de Desencriptación Universal, Verificación SHA-256 y Previsualización Multi-Formato 100% Offline**
+> **Portal Web Empresarial de Desencriptación Universal, Verificación SHA-256 y Previsualización Multi-Formato**
 
 ![StegaVault Logo](assets/icon-192.png)
 
