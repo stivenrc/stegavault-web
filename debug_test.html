@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>StegaVault Cryptographic Compatibility Inspector</title>
+  <style>
+    body { font-family: monospace; background: #0f172a; color: #e2e8f0; padding: 20px; }
+    .box { border: 2px dashed #6366f1; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; background: #1e293b; }
+    pre { background: #000; padding: 15px; border-radius: 6px; overflow-x: auto; color: #38bdf8; }
+    input { padding: 8px; margin: 10px 0; width: 300px; }
+    button { padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>🔍 Inspector de Compatibilidad Criptográfica StegaVault</h2>
+  <div class="box" id="dropzone">
+    Arrastra la foto PNG creada en la App de Escritorio aquí
+    <input type="file" id="file-input" accept="image/png">
+  </div>
+
+  <div>
+    <label>Contraseña usada en la App de PC:</label><br>
+    <input type="text" id="pwd-input" value="1996stiven">
+    <button id="btn-inspect">Analizar Píxeles y Desencriptar</button>
+  </div>
+
+  <h3>Resultados del Diagnóstico:</h3>
+  <pre id="log-output">Esperando archivo...</pre>
+
+  <script src="js/crypto.js"></script>
+  <script src="js/stega.js"></script>
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    const pwdInput = document.getElementById('pwd-input');
+    const btnInspect = document.getElementById('btn-inspect');
+    const logOutput = document.getElementById('log-output');
+
+    let currentFile = null;
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        currentFile = e.target.files[0];
+        logOutput.textContent = `Archivo seleccionado: ${currentFile.name} (${currentFile.size} bytes)\nListo para inspeccionar.`;
+      }
+    });
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); });
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files.length) {
+        currentFile = e.dataTransfer.files[0];
+        logOutput.textContent = `Archivo soltado: ${currentFile.name} (${currentFile.size} bytes)\nListo para inspeccionar.`;
+      }
+    });
+
+    btnInspect.addEventListener('click', async () => {
+      if (!currentFile) { alert('Selecciona o arrastra una imagen PNG.'); return; }
+      logOutput.textContent = 'Procesando píxeles...';
+
+      try {
+        const bmp = await createImageBitmap(currentFile, { colorSpaceConversion: 'none' });
+        const canvas = document.createElement('canvas');
+        canvas.width = bmp.width;
+        canvas.height = bmp.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(bmp, 0, 0);
+        bmp.close();
+
+        // 1. Extraer payload LSB
+        logOutput.textContent += `\nImagen cargada: ${canvas.width}x${canvas.height} px`;
+        const extractRes = await StegaEngine.extractPayload(canvas);
+        
+        logOutput.textContent += `\n\n✅ Encabezado SV1 Encontrado!`;
+        logOutput.textContent += `\nSalt Hex: ${Array.from(extractRes.salt).map(b => b.toString(16).padStart(2,'0')).join('')}`;
+        logOutput.textContent += `\nFernet Token String (${extractRes.tokenStr.length} chars): ${extractRes.tokenStr.substring(0, 40)}...`;
+
+        // 2. Derivar Clave PBKDF2
+        const password = pwdInput.value;
+        logOutput.textContent += `\n\nDerivando clave PBKDF2 con contraseña: "${password}"...`;
+        const keys = await StegaCrypto.deriveKey(password, extractRes.salt);
+        logOutput.textContent += `\nSigning Key Hex: ${Array.from(keys.signingKey).map(b => b.toString(16).padStart(2,'0')).join('')}`;
+        logOutput.textContent += `\nEncryption Key Hex: ${Array.from(keys.encryptionKey).map(b => b.toString(16).padStart(2,'0')).join('')}`;
+
+        // 3. Desencriptar Fernet
+        logOutput.textContent += `\n\nDesencriptando Fernet...`;
+        const decryptedBytes = await StegaCrypto.decryptFernet(extractRes.tokenStr, keys.signingKey, keys.encryptionKey);
+        
+        const decText = new TextDecoder().decode(decryptedBytes);
+        logOutput.textContent += `\n\n🎉 ¡DESENCRIPTACIÓN EXITOSA!`;
+        logOutput.textContent += `\nContenido: ${decText.substring(0, 100)}`;
+      } catch (err) {
+        logOutput.textContent += `\n\n❌ ERROR: ${err.message}\nStack: ${err.stack}`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StegaVault Enterprise - Portal Universal de Desencriptación</title>
+  <meta name="description" content="Portal empresarial de extracción y descifrado seguro de imágenes PNG, PDF y documentos de Office con StegaVault.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#11131D">
+  <!-- JSZip para desempaquetado automático de archivos de ofimática -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Renderizadores nativos de Word (.docx) y Excel (.xlsx) en navegador -->
+  <script src="js/mammoth.browser.min.js"></script>
+  <script src="js/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- BANNER PWA DE INSTALACIÓN CORPORATIVA EN CELULAR / PC (PASO 4) -->
+    <div id="pwa-install-banner" class="pwa-banner hidden">
+      <div class="pwa-banner-info">
+        <span class="pwa-icon">📲</span>
+        <div>
+          <h4>Instalar StegaVault App</h4>
+          <p>Accede en 1 clic desde tu Celular o PC y desencripta documentos 100% Offline sin internet.</p>
+        </div>
+      </div>
+      <div class="pwa-banner-actions">
+        <button id="btn-pwa-install" class="btn primary-btn small-btn">📲 Instalar Ahora</button>
+        <button id="btn-pwa-dismiss" class="icon-btn small-icon-btn" title="Cerrar">✕</button>
+      </div>
+    </div>
+
+    <!-- Encabezado Principal Corporativo -->
+    <header class="main-header">
+      <div class="brand">
+        <div class="logo-icon">SV</div>
+        <div class="brand-text">
+          <h1>StegaVault <span>Enterprise</span></h1>
+          <p>Portal Oficial Universal de Desencriptación & Extracción de Documentos</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="header-btn-pwa" class="btn pwa-header-btn" title="Instalar Aplicación en tu Dispositivo">📲 Instalar App</button>
+        <!-- PASO 6: BOTÓN DE EFECTOS SONOROS CORPORATIVOS -->
+        <button id="sound-toggle" class="icon-btn" title="Activar/Desactivar Sonidos">🔊</button>
+        <button id="theme-toggle" class="icon-btn" title="Cambiar Apariencia">🌓</button>
+        <span class="security-badge">🛡️ 100% Client-Side / Privado</span>
+      </div>
+    </header>
+
+    <!-- NAVEGACIÓN ENTRE PESTAÑAS (DESENCRIPTAR / HISTORIAL AUDIT) -->
+    <nav class="tab-nav">
+      <button id="tab-btn-extract" class="tab-btn active">
+        <span class="icon">🔓</span> Desencriptar Archivo
+      </button>
+      <button id="tab-btn-history" class="tab-btn">
+        <span class="icon">📜</span> Historial Audit
+        <span id="nav-history-counter" class="tab-counter hidden">0</span>
+      </button>
+    </nav>
+
+    <!-- PESTAÑA 1: DESENCRIPTADOR UNIVERSAL -->
+    <main id="view-extract" class="view-panel active">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h2>Desencriptador Universal de Archivos & Documentos</h2>
+          <p>Arrastra o selecciona cualquier archivo recibido (PNG con esteganografía, PDF cifrado, Word, Excel, PowerPoint, ZIP) para desencriptar y extraer su contenido.</p>
+        </div>
+
+        <!-- Zona Drag & Drop Universal -->
+        <div id="extract-dropzone" class="dropzone">
+          <input type="file" id="extract-file-input" accept=".png, .pdf, .docx, .xlsx, .pptx, .zip, .txt, image/*" hidden>
+          <div class="dropzone-content">
+            <div class="drop-icon">📂</div>
+            <h3>Arrastra tu archivo protegido aquí</h3>
+            <p>o haz clic en cualquier parte para buscar en tu dispositivo</p>
+            <span class="file-tag">Soporta PNG (Esteganografía), PDF (AES-256), Word, Excel, PowerPoint y ZIP</span>
+          </div>
+          <div id="extract-file-info" class="file-info-preview hidden">
+            <div id="file-format-icon" class="preview-thumb">🖼️</div>
+            <div class="file-details">
+              <span id="extract-filename" class="name">archivo</span>
+              <span id="extract-filesize" class="size">0 KB</span>
+            </div>
+            <button id="extract-clear-file" class="remove-btn" title="Quitar archivo">✕</button>
+          </div>
+        </div>
+
+        <!-- Formulario de Contraseña Corporativa -->
+        <div class="form-group margin-top">
+          <label for="extract-password">Contraseña Corporativa de Descifrado</label>
+          <div class="input-with-actions">
+            <input type="password" id="extract-password" placeholder="Ingresa la contraseña para desencriptar">
+            <button type="button" id="extract-pwd-toggle" class="action-btn" title="Mostrar/Ocultar">👁️</button>
+          </div>
+        </div>
+
+        <!-- Botón de Acción Principal -->
+        <button id="btn-do-extract" class="btn primary-btn full-width" disabled>
+          <span class="icon">🔓</span> Desencriptar & Extraer Contenido
+        </button>
+
+        <!-- Barra de Progreso -->
+        <div id="extract-progress-container" class="progress-container hidden">
+          <div class="progress-bar-bg">
+            <div id="extract-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+          </div>
+          <span id="extract-progress-text" class="progress-status">Procesando archivo... 0%</span>
+        </div>
+
+        <!-- SECCIÓN DE RESULTADO PERMANENTE -->
+        <div id="extract-result-card" class="result-card">
+          <div class="result-header">
+            <span id="result-badge-icon" class="badge-icon">📋</span>
+            <div>
+              <h4 id="result-type-title">Resultado de la Extracción</h4>
+              <span id="result-meta-info" class="meta">El mensaje o archivo extraído aparecerá en esta área</span>
+            </div>
+          </div>
+
+          <!-- PASO 2: INSIGNIA DE VERIFICACIÓN DE INTEGRIDAD SHA-256 -->
+          <div id="sha256-integrity-badge" class="integrity-badge hidden">
+            <span class="shield-icon">🛡️</span>
+            <div class="integrity-info">
+              <span class="status-title">✅ Documento 100% Auténtico e Intacto</span>
+              <span id="sha256-hash-text" class="hash-code">SHA-256: 00000000000000000000000000000000</span>
+            </div>
+          </div>
+
+          <!-- Campo de Texto Secreto (Visible como en el Software de Escritorio) -->
+          <div id="result-text-box" class="result-content">
+            <textarea id="result-text-output" readonly placeholder="Arrastra cualquier archivo (PNG, PDF, Word, Excel, ZIP), ingresa la contraseña y presiona 'Desencriptar' para revelar el mensaje o descargar el archivo extraído aquí."></textarea>
+            <button id="btn-copy-text" class="btn secondary-btn small-btn hidden">📋 Copiar al Portapapeles</button>
+          </div>
+
+          <!-- Contenido de Archivo Adjunto (Word, Excel, PDF, ZIP, etc.) -->
+          <div id="result-file-box" class="result-content hidden">
+            <div class="file-download-banner">
+              <div id="result-file-icon" class="big-file-icon">📄</div>
+              <div class="file-meta">
+                <span id="result-file-name" class="filename">documento</span>
+                <span id="result-file-size" class="filesize">0 KB</span>
+              </div>
+            </div>
+            
+            <div class="action-buttons-row">
+              <button id="btn-preview-file" class="btn secondary-btn full-width hidden">
+                <span class="icon">👁️</span> Previsualizar Documento en Pantalla
+              </button>
+              <button id="btn-download-file" class="btn success-btn full-width">
+                <span class="icon">💾</span> Descargar Archivo en tu PC / Celular
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- PESTAÑA 2: VISTA DEDICADA DE HISTORIAL AUDIT CON BÚSQUEDA Y FILTROS CRUD -->
+    <main id="view-history" class="view-panel hidden">
+      <div class="card glass-card">
+        <div class="card-header-with-actions">
+          <div>
+            <h2>📜 Historial Audit de la Sesión</h2>
+            <p>Registro de auditoría local de todos los documentos desencriptados hoy.</p>
+          </div>
+          <button id="btn-clear-all-history" class="btn danger-subtle-btn">🗑️ Limpiar Todo</button>
+        </div>
+
+        <!-- Barra de Búsqueda con Lupa y Filtros por Extensión -->
+        <div class="search-filter-bar">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="history-search-input" placeholder="Buscar por nombre, fecha u hora...">
+          </div>
+          <select id="history-filter-ext" class="filter-select">
+            <option value="all">📁 Todos los Formatos</option>
+            <option value="pdf">📕 PDF</option>
+            <option value="docx">📝 Word (.docx)</option>
+            <option value="xlsx">📊 Excel (.xlsx)</option>
+            <option value="png">🖼️ Imagen (.png)</option>
+            <option value="txt">💬 Mensaje de Texto</option>
+          </select>
+        </div>
+
+        <!-- Lista / Tabla de Auditoría de Historial -->
+        <div id="history-full-list" class="history-full-list">
+          <div class="empty-history-notice">
+            <span class="empty-icon">📭</span>
+            <p>Aún no has desencriptado ningún documento en esta sesión.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="main-footer">
+      <p>StegaVault Enterprise v2.0 • Sistema Universal de Seguridad & Esteganografía LSB / AES-256</p>
+    </footer>
+  </div>
+
+  <!-- MODAL DE NOTIFICACIÓN / ALERTA MODERNA -->
+  <div id="custom-modal" class="modal-overlay hidden">
+    <div class="modal-card glass-modal">
+      <div id="modal-icon-badge" class="modal-badge error-badge">🔑</div>
+      <h3 id="modal-title">Contraseña Incorrecta</h3>
+      <p id="modal-message">Verifica la clave ingresada e inténtalo de nuevo.</p>
+      <button id="modal-close-btn" class="btn primary-btn full-width margin-top">Entendido</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE VISTA PREVIA DIRECTA DE DOCUMENTOS (PASO 1 + OFIMÁTICA) -->
+  <div id="preview-modal" class="modal-overlay hidden">
+    <div class="modal-card glass-modal preview-modal-card">
+      <div class="preview-header">
+        <h3 id="preview-filename-title">👁️ Vista Previa del Documento</h3>
+        <button id="preview-close-btn" class="remove-btn" title="Cerrar vista previa">✕</button>
+      </div>
+      <div id="preview-body-container" class="preview-body">
+        <!-- El contenido formateado (PDF, Word, Excel, Imagen, Texto) se inserta dinámicamente aquí -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/crypto.js"></script>
+  <script src="js/stega.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
